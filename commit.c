@@ -196,28 +196,25 @@ int head_update(const ObjectID *new_commit) {
 int commit_create(const char *message, ObjectID *commit_id_out) {
     Commit commit;
 
-    // Step 1: tree
-    if (tree_from_index(&commit.tree) != 0) return -1;
+    if (tree_from_index(&commit.tree) != 0)
+        return -1;
 
-    // Step 2: parent
     if (head_read(&commit.parent) == 0)
         commit.has_parent = 1;
     else
         commit.has_parent = 0;
 
-    // Step 3: author + time
     strcpy(commit.author, pes_author());
     commit.timestamp = time(NULL);
 
-    // Step 4: message
     strcpy(commit.message, message);
 
-    // Step 5: serialize
     void *data;
     size_t len;
-    if (commit_serialize(&commit, &data, &len) != 0) return -1;
 
-    // Step 6: write object
+    if (commit_serialize(&commit, &data, &len) != 0)
+        return -1;
+
     if (object_write(OBJ_COMMIT, data, len, commit_id_out) != 0) {
         free(data);
         return -1;
@@ -225,8 +222,8 @@ int commit_create(const char *message, ObjectID *commit_id_out) {
 
     free(data);
 
-    // Step 7: update HEAD
-    if (head_update(commit_id_out) != 0) return -1;
+    if (head_update(commit_id_out) != 0)
+        return -1;
 
     return 0;
 }

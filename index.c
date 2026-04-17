@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+#include "object.h"
 
 // ─── PROVIDED ────────────────────────────────────────────────────────────────
 
@@ -209,24 +210,47 @@ int index_add(Index *index, const char *path) {
     FILE *fp = fopen(path, "rb");
     if (!fp) return -1;
 
-    fseek(fp, 0, SEEK_END);
+    // get file size
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        fclose(fp);
+        return -1;
+    }
+
     size_t size = ftell(fp);
     rewind(fp);
 
     void *data = malloc(size);
-    fread(data, 1, size, fp);
+    if (!data) {
+        fclose(fp);
+        return -1;
+    }
+
+    // ✅ FIX: check fread return value
+    if (fread(data, 1, size, fp) != size) {
+        fclose(fp);
+        free(data);
+        return -1;
+    }
+
     fclose(fp);
 
     ObjectID hash;
-    object_write(OBJ_BLOB, data, size, &hash);
+    if (object_write(OBJ_BLOB, data, size, &hash) != 0) {
+        free(data);
+        return -1;
+    }
 
     free(data);
 
     struct stat st;
-    stat(path, &st);
+    if (stat(path, &st) != 0) {
+        return -1;
+    }
 
     IndexEntry *e = index_find(index, path);
-    if (!e) e = &index->entries[index->count++];
+    if (!e) {
+        e = &index->entries[index->count++];
+    }
 
     e->mode = st.st_mode;
     e->mtime_sec = st.st_mtime;
